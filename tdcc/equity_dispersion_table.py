@@ -24,9 +24,12 @@ class EquityDispersionTable(TdccBase):
 
     def scrape(self):
         dates = [date.get_attribute('value') for date in Select(self.driver.find_element(By.ID, 'scaDate')).options]
-        stock_data = []
+        batch_size = 2  # 每批處理的股票數量
+        batch_count = 0  # 初始化批次計數器
+        stock_data = []  # 初始化股票數據緩存
 
         for stock_code in self.stock_codes:
+            # stock_data = []
             for date in dates:
                 print(stock_code, date)
                 # ---------------------- date ----------------------
@@ -39,7 +42,7 @@ class EquityDispersionTable(TdccBase):
                 input_element.send_keys(Keys.RETURN)
 
 
-                sleep(0.1)
+                sleep(0.3)
                 data = self.driver.page_source
                 soup = BeautifulSoup(data, 'html.parser')
 
@@ -63,13 +66,18 @@ class EquityDispersionTable(TdccBase):
                     df.drop(columns='序', inplace=True)
                     df.reset_index(drop=True, inplace=True)
                     stock_data.append(df)
-
+               
+            batch_count += 1
+            print(batch_count, batch_size, len(stock_data))
+            if batch_count == batch_size:
+                print("update data to parquet")
+                self.update_data_to_parquet(stock_data)
+                batch_count = 0
+                stock_data = []
             
         # print(stock_data)
         input("Press any key to quit...")
         self.driver.quit()
-            
-        return stock_data
 
     def upate_data(self):
         dates = [date.get_attribute('value') for date in Select(self.driver.find_element(By.ID, 'scaDate')).options]
@@ -121,34 +129,40 @@ class EquityDispersionTable(TdccBase):
         return stock_data
 
     def update_data_to_parquet(self, stock_data: List[pd.DataFrame], folder_path: str = DATADIR):
-        
+        # 建立一個字典來存放每個 tier 的新資料
+        data_dict = {}
+
         for df in stock_data:
             for _, row in df.iterrows():
                 tier, count, share_units, share_percentage, symbol, datetime = row
-                filename = f"{tier}.parquet"
-                file_path = os.path.join(folder_path, filename)
                 new_row = {
-                        "股票代碼": symbol,
-                        "日期": datetime,
-                        "人數": count,
-                        "股數/單位數": share_units,
-                        "占集保庫存數比例 (%)": share_percentage
-                    }
-                new_df = pd.DataFrame([new_row])    
+                    "股票代碼": symbol,
+                    "日期": datetime,
+                    "人數": count,
+                    "股數/單位數": share_units,
+                    "占集保庫存數比例 (%)": share_percentage
+                }
+                new_df = pd.DataFrame([new_row])
+                new_df.set_index(['股票代碼', '日期'], inplace=True)
 
-
-                if os.path.exists(file_path):
-                    existing_df = pd.read_parquet(file_path)
-                    # 將 'datetime' 和 'symbol' 設定為索引
-                    existing_df.set_index(['股票代碼', '日期'], inplace=True)
-                    new_df.set_index(['股票代碼', '日期'], inplace=True)
-                    updated_df = pd.concat([existing_df, new_df])
-                    updated_df = updated_df.drop_duplicates()
-                    # sort
-                    updated_df.sort_values(by=['股票代碼', '日期'], inplace=True)
-                    updated_df.reset_index(inplace=True)
-                    updated_df.to_parquet(file_path, index=False)
+                # 將新的資料加入到對應的 tier 中
+                if tier in data_dict:
+                    data_dict[tier] = pd.concat([data_dict[tier], new_df])
                 else:
-                    # sort
-                    new_df.sort_values(by=['股票代碼', '日期'], inplace=True)
-                    new_df.to_parquet(file_path, index=False)
+                    data_dict[tier] = new_df
+
+        # 將每個 tier 的新資料寫入到對應的檔案中
+        for tier, new_data in data_dict.items():
+            filename = f"{tier}.parquet"
+            file_path = os.path.join(folder_path, filename)
+
+            if os.path.exists(file_path):
+                existing_df = pd.read_parquet(file_path)
+                existing_df.set_index(['股票代碼', '日期'], inplace=True)
+                updated_df = pd.concat([existing_df, new_data]).reset_index().drop_duplicates()
+            else:
+                updated_df = new_data.reset_index()
+
+            updated_df.sort_values(by=['股票代碼', '日期'], inplace=True)
+            print(f"Updating {tier}.parquet")
+            updated_df.to_parquet(file_path, index=False)

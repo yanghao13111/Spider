@@ -6,7 +6,7 @@ PROJECT_ROOT = os.path.dirname((os.path.dirname(os.path.abspath(__file__))))
 
 class TdccBase:
     def __init__(self, data):
-        self.df = pd.read_csv(os.path.join(PROJECT_ROOT, data))
+        self.df = pd.read_csv(os.path.join(PROJECT_ROOT, data), dtype=str)
         self.url = 'https://www.tdcc.com.tw/portal/zh/smWeb/qryStock'
         self.driver = webdriver.Chrome()
         self.driver.get(self.url)
