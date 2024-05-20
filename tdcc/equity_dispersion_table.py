@@ -29,7 +29,6 @@ class EquityDispersionTable(TdccBase):
         stock_data = []  # 初始化股票數據緩存
 
         for stock_code in self.stock_codes:
-            # stock_data = []
             for date in dates:
                 print(stock_code, date)
                 # ---------------------- date ----------------------
@@ -74,17 +73,27 @@ class EquityDispersionTable(TdccBase):
                 self.update_data_to_parquet(stock_data)
                 batch_count = 0
                 stock_data = []
-            
-        # print(stock_data)
+        
+        self.update_data_to_parquet(stock_data)
         input("Press any key to quit...")
         self.driver.quit()
 
-    def upate_data(self):
+    def update_data(self, date=None):
         dates = [date.get_attribute('value') for date in Select(self.driver.find_element(By.ID, 'scaDate')).options]
 
-        # 只選擇最新的日期
-        latest_date = dates[0]
-        stock_data = []
+        if date:
+            print(date)
+            if date in dates:
+                latest_date = date
+            else:
+                latest_date = dates[0]
+        else:
+            latest_date = dates[0]
+        print(latest_date)
+
+        batch_size = 100  # 每批處理的股票數量
+        batch_count = 0  # 初始化批次計數器
+        stock_data = []  # 初始化股票數據緩存
 
         for stock_code in self.stock_codes:
             # ---------------------- date ----------------------
@@ -97,7 +106,7 @@ class EquityDispersionTable(TdccBase):
             input_element.send_keys(stock_code)
             input_element.send_keys(Keys.RETURN)
 
-            sleep(0.1)
+            sleep(0.2)
             data = self.driver.page_source
             soup = BeautifulSoup(data, 'html.parser')
 
@@ -122,7 +131,16 @@ class EquityDispersionTable(TdccBase):
                 df.reset_index(drop=True, inplace=True)
                 stock_data.append(df)
 
-        
+            batch_count += 1
+            print(batch_count, batch_size, len(stock_data))
+            if batch_count == batch_size:
+                print("update data to parquet")
+                self.update_data_to_parquet(stock_data)
+                batch_count = 0
+                stock_data = []
+
+
+        self.update_data_to_parquet(stock_data)
         input("Press any key to quit...")
         self.driver.quit()
         

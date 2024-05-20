@@ -7,4 +7,4 @@ if __name__ == "__main__":
     ed = EquityDispersionTable(data)
     # df = ed.upate_data()
     # ed.update_data_to_parquet(df)
-    ed.scrape()
+    ed.update_data()
