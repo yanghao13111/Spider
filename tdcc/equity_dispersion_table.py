@@ -84,10 +84,13 @@ class EquityDispersionTable(TdccBase):
         if date:
             print(date)
             if date in dates:
+                print("date in dates")
                 latest_date = date
             else:
+                print("date not in dates")
                 latest_date = dates[0]
         else:
+            print("no date")
             latest_date = dates[0]
         print(latest_date)
 
