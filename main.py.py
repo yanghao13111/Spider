@@ -5,4 +5,5 @@ from mops.financial_news_scraper import FinancialNewsScraper
 if __name__ == "__main__":
     data = 'stock_code.csv'
     fns = FinancialNewsScraper(data)
-    fns.scrape()
+    # fns.scrape()
+    fns.start_scraping()
