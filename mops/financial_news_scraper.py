@@ -59,16 +59,30 @@ class FinancialNewsScraper(MopsBase):
                         latest_news_row = table.find_all('tr')[1]  # 第一個是表頭，第二個才是最新消息
                         if latest_news_row:
                             cells = latest_news_row.find_all('td')
-                            if len(cells) >= 1:
+                            if len(cells) >= 2:
+                                # 1. 抓取日期
                                 latest_date = cells[0].text.strip()  # 假設第一個 `<td>` 包含日期
                                 latest_date = self.convert_time(latest_date)   # 轉換格式
 
-                                print(f"最新新聞日期: {latest_date}")
+                                # 2. 抓取快訊名稱
+                                button = cells[1].find('button')
+                                if button:
+                                    news_name = button.text.strip()  # 快訊名稱
+                                else:
+                                    news_name = "未知快訊名稱"
 
+                                # 3. 整合日期和快訊名稱成一個訊息
+                                message = f"日期: {latest_date} | 快訊名稱: {news_name}"
+
+                                # 4. 打印整合的訊息
+                                print(message)
+                                print("\n========================================================\n")
+
+                                # 如果是今天的新聞，打印即時快訊
                                 if latest_date == today:
-                                    print("即時快訊！")
+                                    print(f"{message} - 即時快訊！")
                             else:
-                                print(f"無法找到日期資訊，股票代碼：{stock_code}")
+                                print(f"無法找到日期或快訊名稱，股票代碼：{stock_code}")
                         else:
                             print(f"無法找到最新新聞，股票代碼：{stock_code}")
                     else:
