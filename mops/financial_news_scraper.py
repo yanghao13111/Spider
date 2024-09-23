@@ -55,36 +55,46 @@ class FinancialNewsScraper(MopsBase):
                     table = news_div.find_next('table')
                     
                     if table:
-                        # 找到表格中的第一筆數據（即最新的日期）
-                        latest_news_row = table.find_all('tr')[1]  # 第一個是表頭，第二個才是最新消息
-                        if latest_news_row:
-                            cells = latest_news_row.find_all('td')
+                        # 遍歷表格中的所有行
+                        rows = table.find_all('tr')[1:]  # 跳過表頭，從第1筆數據開始
+                        first_date = None  # 用於存儲最新的日期
+
+                        for row in rows:
+                            cells = row.find_all('td')
                             if len(cells) >= 2:
                                 # 1. 抓取日期
                                 latest_date = cells[0].text.strip()  # 假設第一個 `<td>` 包含日期
                                 latest_date = self.convert_time(latest_date)   # 轉換格式
 
-                                # 2. 抓取快訊名稱
-                                button = cells[1].find('button')
-                                if button:
-                                    news_name = button.text.strip()  # 快訊名稱
+                                if first_date is None:
+                                    # 設置第一個日期為參考日期
+                                    first_date = latest_date
+
+                                # 只處理與第一個日期相同的新聞
+                                if latest_date == first_date:
+                                    # 2. 抓取快訊名稱
+                                    button = cells[1].find('button')
+                                    if button:
+                                        news_name = button.text.strip()  # 快訊名稱
+                                    else:
+                                        news_name = "未知快訊名稱"
+
+                                    # 3. 整合日期和快訊名稱成一個訊息
+                                    message = f"日期: {latest_date} | 快訊名稱: {news_name}"
+
+                                    # 4. 打印整合的訊息
+                                    print(message)
+
+                                    # 如果是今天的新聞，打印即時快訊
+                                    if latest_date == today:
+                                        print(f"{message} - 即時快訊！")
                                 else:
-                                    news_name = "未知快訊名稱"
-
-                                # 3. 整合日期和快訊名稱成一個訊息
-                                message = f"日期: {latest_date} | 快訊名稱: {news_name}"
-
-                                # 4. 打印整合的訊息
-                                print(message)
-                                print("\n========================================================\n")
-
-                                # 如果是今天的新聞，打印即時快訊
-                                if latest_date == today:
-                                    print(f"{message} - 即時快訊！")
+                                    # 一旦遇到與第一個日期不相符的新聞，停止處理
+                                    break
                             else:
                                 print(f"無法找到日期或快訊名稱，股票代碼：{stock_code}")
-                        else:
-                            print(f"無法找到最新新聞，股票代碼：{stock_code}")
+                    
+                        print("\n===============================================================\n")                    
                     else:
                         print(f"未找到表格，股票代碼：{stock_code}")
                 else:
